@@ -1,0 +1,25 @@
+Attempting to compile llvm/hermes so that I can link the software into my server concept:
+
+llvm-master/build/lib/Passes
+$ CFLAGS='-Wa,-mbig-obj' make PassBuilder.cpp.o
+[ 84%] Building CXX object lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o
+/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
+/tmp/ccK4Flpl.s: Assembler messages:
+/tmp/ccK4Flpl.s: Fatal error: can't write CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
+/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
+/tmp/ccK4Flpl.s: Fatal error: can't close CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
+make[1]: *** [lib/Passes/CMakeFiles/LLVMPasses.dir/build.make:63: lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o] Error 1
+make: *** [Makefile:230: PassBuilder.cpp.o] Error 2
+
+recompiler:
+    manually delimate section of headers
+    parse file to read headers, compile headers directly into individual objects
+    compile main includer file, generated without headers, to discover link errors
+    provide separate header file for prototyping, extern-defing link errors
+    include new proto file and compile includer file into object and link/archive
+        with individually separated objects.
+    modify makefile to link separate objects.
+    consider: batching header objects
+
+posting this on the network...
+
