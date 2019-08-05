@@ -1,25 +1,278 @@
-Attempting to compile llvm/hermes so that I can link the software into my server concept:
+llvm::
+	Attempting to compile llvm/hermes so that I can link the software into my server concept:
 
-llvm-master/build/lib/Passes
-$ CFLAGS='-Wa,-mbig-obj' make PassBuilder.cpp.o
-[ 84%] Building CXX object lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o
-/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
-/tmp/ccK4Flpl.s: Assembler messages:
-/tmp/ccK4Flpl.s: Fatal error: can't write CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
-/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
-/tmp/ccK4Flpl.s: Fatal error: can't close CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
-make[1]: *** [lib/Passes/CMakeFiles/LLVMPasses.dir/build.make:63: lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o] Error 1
-make: *** [Makefile:230: PassBuilder.cpp.o] Error 2
+	llvm-master/build/lib/Passes
+	$ CFLAGS='-Wa,-mbig-obj' make PassBuilder.cpp.o
+	[ 84%] Building CXX object lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o
+	/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
+	/tmp/ccK4Flpl.s: Assembler messages:
+	/tmp/ccK4Flpl.s: Fatal error: can't write CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
+	/usr/lib/gcc/x86_64-pc-cygwin/5.4.0/../../../../x86_64-pc-cygwin/bin/as: CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: too many sections (55165)
+	/tmp/ccK4Flpl.s: Fatal error: can't close CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o: File too big
+	make[1]: *** [lib/Passes/CMakeFiles/LLVMPasses.dir/build.make:63: lib/Passes/CMakeFiles/LLVMPasses.dir/PassBuilder.cpp.o] Error 1
+	make: *** [Makefile:230: PassBuilder.cpp.o] Error 2
 
-recompiler:
-    manually delimate section of headers
-    parse file to read headers, compile headers directly into individual objects
-    compile main includer file, generated without headers, to discover link errors
-    provide separate header file for prototyping, extern-defing link errors
-    include new proto file and compile includer file into object and link/archive
-        with individually separated objects.
-    modify makefile to link separate objects.
-    consider: batching header objects
+	recompiler:
+	    manually delimate section of headers
+	    parse file to read headers, compile headers directly into individual objects
+	    compile main includer file, generated without headers, to discover link errors
+	    provide separate header file for prototyping, extern-defing link errors
+	    include new proto file and compile includer file into object and link/archive
+	        with individually separated objects.
+	    modify makefile to link separate objects.
+	    consider: batching header objects
 
-posting this on the network...
+	posting this on the network...
 
+
+services/session:
+    structures:
+        documentation::
+            overview::
+                Passive (reverse) RPC -- Handle multiple client requests for commands.
+
+                This is a generalization because the server must decide when
+                those commands become available (this could come from web
+                interaction).  Additionally, the server agent handles responses
+                which control sequence and timing of reverse network protocol.
+
+                While this distinguishes between multiple clients and parallel commands,
+                it doesn't not distinguish client application state:  in other words,
+                each unique client address has one channel for different commands.  This
+                could be extended by the client registering for a unique channel token,
+                or, by using WebSockets.
+
+
+            serverSideAPI::
+                I'm a server component that wants to serve commands to a client.  First,
+                I see what clients are available:
+
+                    clients = _liveRequestClients()
+
+                I'll have to make a determination which of the waiting clients to send
+                the command to.  Complicated part: I need to pass a response callback during
+                new command initiation, so that I can be notified of the client response, and,
+                in turn, respond to this response to complete the command lifecycle.
+
+                Currently, the only method is to evaluate javascript in the client page:
+
+                    def responseCallback(command, response):
+                        # Little needs to happen here, except to complete the response,
+                        # because the server will generalize the RPC response.
+                        command.responseComplete('OK') # Optionally passing back to the client session status.
+
+                    _postNewCommand(clients[0], responseCallback, 'evaluate', '...')
+
+
+                Extension:
+
+                    Provide an object model for server-side programs to initiate commands to
+                    waiting clients:
+
+                        client = $('services/session/command/client', session) # web.adapter.session
+                        response = client.postMethod('evaluate', '...')
+                        session.postMessage(['output', jsonify(response)])
+
+
+        interface::
+            request($view)::
+                context($trigger)::
+                    response['content'] = jsonify(call('services/session/command/request', request.client_address[0]))
+                    response['content_type'] = 'application/json'
+
+            response($view)::
+                context($trigger)::
+                    id = integer(request.GET['id'])
+                    r = parseJson(request.post_data)
+                    r = call('services/session/command/response', request.client_address[0], id, r)
+                    response['content'] = jsonify(r);
+                    response['content_type'] = 'application/json'
+
+
+        command::
+            # Native API:
+            def request(frame, peerAddress):
+                try: q = _requestCommandWait[peerAddress]
+                except KeyError:
+                    q = _requestCommandWait[peerAddress] = _queue()
+
+                q.put(frame.task)
+                raise frame.task.Yield
+
+            def response(frame, peerAddress, id, object):
+                key = (peerAddress, id)
+                _responseCommandWait[key].post(frame.task, object)
+                raise frame.task.Yield
+
+
+            # Server-side API:
+            def _postNewCommand(peerAddress, callback, method, *args):
+                return _command.new(_requestCommandWait[peerAddress].get_nowait(),
+                                    peerAddress, callback, method, *args)
+
+
+            def _liveRequestClients():
+                return _requestCommandWait.keys()
+
+
+            # State.
+            from Queue import Queue as _queue
+            _requestCommandWait = dict()
+            _responseCommandWait = dict()
+            _liveCommands = dict()
+
+            class _command:
+                @classmethod
+                def new(self, *args, **kwd):
+                    return self(self.newId(), *args, **kwd)
+
+                @classmethod
+                def newId(self):
+                    while True:
+                        id = len(_liveCommands)
+                        if id not in _liveCommands:
+                            return id
+
+                def __init__(self, id, task, peerAddress, callback, method, *arguments):
+                    self.task = task
+                    self.peerAddress = peerAddress
+                    self.callback = callback
+
+                    self.id = id
+                    self.method = method
+                    self.arguments = arguments
+
+                    _liveCommands.append[(task, id)] = self
+                    self.responseCode()
+
+                def responseCode(self):
+                    code = dict(id = self.id, method = self.method,
+                                arguments = self.arguments)
+
+                    del _liveCommands[(self.task, self.id)]
+                    _responseCommandWait[(self.peerAddress, self.id)] = self
+
+                    resumeTask(self.task, value = code)
+
+                def post(self, task, object):
+                    self.task = task # rewrite: the command instance now points to the response task.
+                    self.callback(self, object)
+
+                def responseComplete(self, value = None):
+                    resumeTask(self.task, value = value)
+
+
+        jsClient:
+            library.js::
+                var commands = [];
+
+                function extendObject(source, destination)
+                {
+                    for (var n in source)
+                        { destination[n] = source[n]; }
+
+                    return destination;
+                }
+
+                var baseUrl = {proto: 'https', host: 'localhost', port: '2180'};
+                var commandUrl = extendObject(baseUrl, {path: 'page/services/session/interface/request'});
+                var responseUrl = extendObject(baseUrl, {path: 'page/services/session/interface/response'});
+
+                function quote(s)
+                    { return s; }
+
+                function buildQueryString(q)
+                {
+                    var r = [];
+
+                    for (var n in q)
+                    {
+                        var v = q[n];
+                        r[r.length] = n.toString() + '=' + quote(v.toString());
+                    }
+
+                    return r.join('&');
+                }
+
+                function urlString(url)
+                {
+                    var u = url.proto + '://' + url.host;
+                    if (url.port)
+                        { u += ':';
+                          u += url.port.toString(); }
+
+                    if (url.path)
+                        { u += '/';
+                          u += url.path; }
+
+                    if (url.query)
+                        { u += '?';
+                          u += buildQueryString(url.query); }
+
+                    return u;
+                }
+
+                function getCommandUrl()
+                    { return urlString(commandUrl); }
+
+                function responseCommandUrl(id)
+                    { return urlString(extendObject(responseUrl, {id: id})); }
+
+                function requestCommand(callback)
+                    { $.get(getCommandUrl(), addNewCommandCallback(callback)); }
+
+                function addNewCommandCallback(callback)
+                {
+                    return function (data)
+                    {
+                        var data = JSON.parse();
+                        var c = new Command(data.id, data);
+                        commands.push(c);
+                        callback && callback(c);
+                    };
+                }
+
+                function Command(id, command)
+                {
+                    this.id = id;
+                    this.command = command;
+                }
+
+                Command.response = new function(object, callback)
+                {
+                    var command = this;
+                    delete commands[this];
+                    var u = responseCommandUrl(this.id);
+                    $.post(u, JSON.stringify(object), function (response)
+                           { return callback(command, response); });
+                }
+
+
+                // Evaluator.
+                function commandEvaluator(completion)
+                {
+                    this.completion = completion;
+                    requestCommand(this.handleCommand);
+                }
+
+                commandEvaluator.handleCommand = function (c)
+                    { var m = this[c.command.method];
+                      var r = m.apply(null, c.command.arguments);
+                      c.response(r, this.completion); };
+
+
+                // Methods.
+                commandEvaluator.evaluate = function(script)
+                    { return eval(script); }
+
+
+                // Start a new asynchronous command-response loop.
+                function loopCommand()
+                {
+                    function responseHandler(command, response)
+                        { initiator(); }
+                    function initiator()
+                        { new commandEvaluator(responseHandler); }
+
+                    initiator();
+                }
