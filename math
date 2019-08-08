@@ -1,3 +1,10 @@
+space::
+	natural   -- complex
+	realistic -- satisfying
+	physical  -- computational
+	circular  -- simple
+
+
 llvm::
 	Attempting to compile llvm/hermes so that I can link the software into my server concept:
 
@@ -90,76 +97,76 @@ services/session:
 
 
         command::
-            # Native API:
-            def request(frame, peerAddress):
-                try: q = _requestCommandWait[peerAddress]
-                except KeyError:
-                    q = _requestCommandWait[peerAddress] = _queue()
+		    # Native API:
+		    def request(frame, peerAddress):
+		        try: q = _requestCommandWait[peerAddress]
+		        except KeyError:
+		            q = _requestCommandWait[peerAddress] = _queue()
 
-                q.put(frame.task)
-                raise frame.task.Yield
+		        q.put(frame.task)
+		        raise frame.task.Yield
 
-            def response(frame, peerAddress, id, object):
-                key = (peerAddress, id)
-                _responseCommandWait[key].post(frame.task, object)
-                raise frame.task.Yield
-
-
-            # Server-side API:
-            def _postNewCommand(peerAddress, callback, method, *args):
-                return _command.new(_requestCommandWait[peerAddress].get_nowait(),
-                                    peerAddress, callback, method, *args)
+		    def response(frame, peerAddress, id, object):
+		        key = (peerAddress, id)
+		        _responseCommandWait[key].post(frame.task, object)
+		        raise frame.task.Yield
 
 
-            def _liveRequestClients():
-                return _requestCommandWait.keys()
+		    # Server-side API:
+		    def _postNewCommand(peerAddress, callback, method, *args):
+		        return _command.new(_requestCommandWait[peerAddress].get_nowait(),
+		                            peerAddress, callback, method, *args)
 
 
-            # State.
-            from Queue import Queue as _queue
-            _requestCommandWait = dict()
-            _responseCommandWait = dict()
-            _liveCommands = dict()
+		    def _liveRequestClients():
+		        return _requestCommandWait.keys()
 
-            class _command:
-                @classmethod
-                def new(self, *args, **kwd):
-                    return self(self.newId(), *args, **kwd)
 
-                @classmethod
-                def newId(self):
-                    while True:
-                        id = len(_liveCommands)
-                        if id not in _liveCommands:
-                            return id
+		    # State.
+		    from Queue import Queue as _queue
+		    _requestCommandWait = dict()
+		    _responseCommandWait = dict()
+		    _liveCommands = dict()
 
-                def __init__(self, id, task, peerAddress, callback, method, *arguments):
-                    self.task = task
-                    self.peerAddress = peerAddress
-                    self.callback = callback
+		    class _command:
+		        @classmethod
+		        def new(self, *args, **kwd):
+		            return self(self.newId(), *args, **kwd)
 
-                    self.id = id
-                    self.method = method
-                    self.arguments = arguments
+		        @classmethod
+		        def newId(self):
+		            while True:
+		                id = len(_liveCommands)
+		                if id not in _liveCommands:
+		                    return id
 
-                    _liveCommands.append[(task, id)] = self
-                    self.responseCode()
+		        def __init__(self, id, task, peerAddress, callback, method, *arguments):
+		            self.task = task
+		            self.peerAddress = peerAddress
+		            self.callback = callback
 
-                def responseCode(self):
-                    code = dict(id = self.id, method = self.method,
-                                arguments = self.arguments)
+		            self.id = id
+		            self.method = method
+		            self.arguments = arguments
 
-                    del _liveCommands[(self.task, self.id)]
-                    _responseCommandWait[(self.peerAddress, self.id)] = self
+		            _liveCommands.append[(task, id)] = self
+		            self.responseCode()
 
-                    resumeTask(self.task, value = code)
+		        def responseCode(self):
+		            code = dict(id = self.id, method = self.method,
+		                        arguments = self.arguments)
 
-                def post(self, task, object):
-                    self.task = task # rewrite: the command instance now points to the response task.
-                    self.callback(self, object)
+		            del _liveCommands[(self.task, self.id)]
+		            _responseCommandWait[(self.peerAddress, self.id)] = self
 
-                def responseComplete(self, value = None):
-                    resumeTask(self.task, value = value)
+		            resumeTask(self.task, value = code)
+
+		        def post(self, task, object):
+		            self.task = task # rewrite: the command instance now points to the response task.
+		            self.callback(self, object)
+
+		        def responseComplete(self, value = None):
+		            resumeTask(self.task, value = value)
 
 
         jsClient:
