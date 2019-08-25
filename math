@@ -1,3 +1,16 @@
+asynchronous-events::
+    active = action(action) # action = curry
+    parallelize = active(future.Work) # start a new thread and return a promise.
+    futurization = active(parallelize)
+
+    # When this function is called, start the callable argument in another thread, additionally
+    # starting the callable argument of that callable's argument in another thread.
+    procedure = define.anonymous(loop(symbol.True)))
+    reactive = parallelize(futurization(procedure))
+
+    reactive(call) # Start process: let another thread initiate a futurized procedure.
+
+
 space::
 	natural   -- complex
 	realistic -- satisfying
