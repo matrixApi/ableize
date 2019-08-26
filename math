@@ -1,3 +1,85 @@
+subsystem/documents:
+    my:
+        planet::
+            sim = $['services/planetary/simulation']
+
+            def init$():
+                instance.task = $('components/channel')
+                parallel(sim, instance.task)
+
+            def add$(task):
+                return instance.task + action(task, instance)
+
+        emanation::
+            def continent(world):
+                return $('cdrom/image/singular', world)
+
+    input::
+        isolate($command):
+            documentation: isolate {$my planet} + {$my emanation continent}
+            code::
+                println('Initiating subsystem...')
+                pr = action(shortate, instance.argstr)
+                println(subsystem(pr))
+
+
+    core:
+        native::
+            def subsystem(frame, *tasks):
+                from library import suspension
+
+                with member(frame).task as task:
+                    with member(task).machine as vm:
+                        def init():
+                            # Run VM with a new set of tasks.
+                            for procedure in tasks:
+                                with vm.initiate(environ = task.environ) as new:
+                                    new.frameCall(procedure)
+
+
+                            def results():
+                                return mapi(str, vm())
+
+                           return nls(results)
+
+                        parallelize = suspension(vm)
+                        task.callAsynchronous \
+                            (parallelize(init))
+
+
+        library::
+            class VMSuspension:
+                # Execute an isolated system.
+                def __init__(self, vm, replacement = None):
+                    self.tasks = vm.tasks
+                    if replacement is None:
+                        replacement = Queue()
+
+                    self.vm = vm
+                    vm.TaskQ = replacement
+
+                def resume(self):
+                    self.vm.TaskQ = self.tasks # what about tasks added to the replacement queue?
+                __call__ = resume
+
+
+                class decorator:
+                    def __init__(self, vm):
+                        self.vm = vm
+
+                    def __call__(self, function):
+                        def suspension(*args, **kwd):
+                            resume = VMSuspension(self.vm)
+
+                            try: return function(*args, **kwd)
+                            finally:
+                                resume()
+
+                        return suspension
+
+            suspension = VMSuspension.decorator
+
+
 asynchronous-events::
     active = action(action) # action = curry
     parallelize = active(future.Work) # start a new thread and return a promise.
