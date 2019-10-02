@@ -1,3 +1,29 @@
+compact python::
+    ? if
+    , elif
+    : else
+    ... while
+    , for
+    - with
+    = def
+    + class
+    ... continue
+    % break
+    ^ raise
+    ! return
+    < yield
+    , in
+    -> lambda
+    & and
+    | or
+    !not
+    :: is
+    / try
+    ... finally
+    ~ - except
+    $ - import
+
+
 subsystem/documents:
     my:
         planet::
@@ -38,7 +64,7 @@ subsystem/documents:
 
 
                             def results():
-                                return mapi(str, vm())
+                                return mapi(str, vm.runComplete())
 
                            return nls(results)
 
