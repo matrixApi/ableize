@@ -1,17 +1,18 @@
 my/communication:
     documents/usage:
-        service: $.my.communication.messaging.streamChunk(session, frameOfVideo)
+        service: $.my.communication.messaging.cats.streamChunk(session, frameOfVideo)
         portal::
             %doJavascriptCore('my/communication/javascript/library')
             %doJavascriptCore('my/communication/javascript/cats/stream')
 
-    messaging::
-        data = structure('my/communication/javascript').cats.message
+    messaging:
+        cats:
+            data = structure('my/communication/javascript').cats.message
 
-        def streamChunk(session, message):
-            message = mapping(['content', message])
-            message = mapping(['message', message])
-            return session.postJavascript(data, message)
+            def streamChunk(session, message):
+                message = mapping(['content', message])
+                message = mapping(['message', message])
+                return session.postJavascript(data, message)
 
 
     interfaces/javascript::
