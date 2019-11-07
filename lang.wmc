@@ -1,0 +1,676 @@
+WMC []
+
+grammar:
+    noun:
+        proper:
+            - Roger
+
+        improper:
+            - cat
+            - dog
+
+    descriptor:
+        - good
+        - bad
+
+    verb:
+        - jumped
+
+    preposition:
+        - with
+        - in
+        - under
+        - towards
+        - before
+        - of
+        - after
+        - behind
+        - around
+        - during
+        - for
+        - via
+        - from
+        - throughout
+        - atop
+        - until
+        - to
+        - about
+
+pleasure:
+    noun:
+        improper: ['yeah', 'good', 'ah', 'ok', 'sure', 'yes', 'food', 'cake', 'cookies', 'ice cream', 'waffles', 'sweetie', 'ponies', 'kitties', 'puppies', 'brad pitt', 'nixon', 'turkey', 'beer', 'marijuana', 'gravey', 'babies', 'computers', 'enchilada', 'cocoa', 'coffee', 'wifi', 'jesus', 'warmth', 'comfort', 'bread']
+
+
+wrong:
+    noun:
+        proper:
+            - Roger
+
+        improper:
+            - with
+            - in
+            - under
+            - towards
+            - before
+            - of
+            - after
+            - behind
+            - around
+            - during
+            - for
+            - via
+            - from
+            - throughout
+            - atop
+            - until
+            - to
+            - about
+
+    descriptor:
+        - jumped
+
+    verb:
+        - good
+        - bad
+
+    preposition:
+        - cat
+        - dog
+
+lang($module)::
+    import json
+
+    class definition(dict):
+        '''
+        A part of speech attached to all meanings of the word, the definition
+        text itself, as well as other definition-specific properties.
+
+        '''
+
+        def __init__(self, word, definition = None, **props):
+            dict.__init__(self, props)
+            self.word = word
+            self.definition = definition
+
+        def __str__(self):
+            return str(self.word)
+
+        def __repr__(self):
+            return '<%s %r>' % (nameOf(classOf(self)), self.word.word)
+
+        @property
+        def exported(self):
+            props = dict(self)
+            props['type'] = self.partOfSpeech
+            props['definition'] = self.definition
+            return props
+
+        @property
+        def partOfSpeech(self):
+            return nameOf(classOf(self))
+
+        @classmethod
+        def FromDefinition(self, word, *definitions):
+            if isinstance(definitions, dict):
+                raise NotImplementedError('Part of speech definition groupings not implemented')
+
+            for defn in definitions:
+                if isinstance(defn, dict):
+                    props = defn
+                    type = defn.pop('type')
+                    defn = defn.pop('definition', None)
+
+                elif isinstance(defn, (list, tuple)):
+                    if len(defn) == 1:
+                        type = defn[0]
+                        defn = None
+                        props = dict()
+                    elif len(defn) == 2:
+                        (type, defn) = defn
+                        props = dict()
+                    elif len(defn) == 3:
+                        (type, defn, props) = defn
+
+                elif isinstance(defn, basestring):
+                    type = defn
+                    defn = None
+                    props = dict()
+
+                type = self.partsOfSpeech[type]
+                yield type(word, defn, **props)
+
+        @property
+        def dictionary(self):
+            return self.word.dictionary
+
+        @property
+        def deepMeaning(self):
+            return self.dictionary.definitionsOf(self.definition)
+
+        def definitionsOf(self, name):
+            # Return deep definitions of property content.
+            return self.dictionary.definitionsOf(self.get(name))
+
+        def __iter__(self):
+            return self.deepMeaning
+
+
+    class verb(definition):
+        pass
+    class noun(definition):
+        pass
+    class preposition(definition):
+        pass
+    class article(definition):
+        pass
+    class descriptor(definition):
+        pass
+
+    definition.partsOfSpeech = dict(verb = verb, noun = noun,
+                                    preposition = preposition,
+                                    article = article,
+                                    descriptor = descriptor,
+                                    determiner = article,
+                                    adjective = descriptor)
+
+    class word(list):
+        def __init__(self, dictionary, word, *definitions):
+            list.__init__(self, definition.FromDefinition(self, *definitions))
+            self.dictionary = dictionary
+            self.word = word
+
+        def __repr__(self):
+            return '<%s %r %d definitions>' % (nameOf(classOf(self)), self.word, len(self))
+
+        def __str__(self):
+            return self.word
+
+        @property
+        def exported(self):
+            return [d.exported for d in self]
+
+        def define(self, *definitions):
+            self.extend(*definition.FromDefinition(self, *definitions))
+            return self
+
+    from string import uppercase, lowercase
+    alphabet = uppercase + lowercase
+
+    def parseWords(words):
+        b = ''
+        for c in words:
+            if c in alphabet:
+                b += c
+            elif b:
+                yield b
+                b = ''
+
+        if b:
+            yield b
+
+    class dictionary(dict):
+        @classmethod
+        def FromStructure(self, name, value, **kwd):
+            return self(value, kwd)
+
+        @classmethod
+        def sample(self):
+            from common.runtime.structural.document import loadStructuredMessageFromClasses
+            return loadStructuredMessageFromClasses('''\
+                WMC []
+
+                english:
+                    standard($dictionary):
+                        cat:
+                            - type: noun
+                              definition: a feline
+                              origin: unknown
+
+                        a:
+                            - type: article
+                              definition: used when referring to someone or something for the first time in a text or conversation.
+
+                        feline:
+                            - type: noun
+                              definition: a cat or other member of the cat family.
+                              origin: '[Latin] felinus; feles'
+
+                            - type: adjective
+                              definition: relating to or affecting cats or other members of the cat family.
+
+                ''', dict(lang = namespace(dictionary = self)),
+                default = 'lang')
+
+        wordClass = word
+
+        @classmethod
+        def FromJson(self, path, **props):
+            if not isinstance(path, io.path):
+                path = io.path(path)
+
+            return self(path.loading.json, props)
+
+        def __init__(self, words, props):
+            dict.__init__(self, ((name, self.wordClass(self, name, *value))
+                                 for (name, value)
+                                 in words.iteritems()))
+
+            self.properties = props
+
+        def __repr__(self):
+            return '<%s %d words>' % (nameOf(classOf(self)), len(self))
+
+        @property
+        def exported(self):
+            return dict((word.word, word.exported)
+                        for word in self.itervalues())
+
+        @property
+        def json(self):
+            return json.dumps(self.exported, indent = 1)
+
+        def define(self, word, *definitions):
+            try: word = self[word]
+            except KeyError:
+                word = self[word] = self.wordClass(self, word, *definitions)
+            else:
+                word.define(*definitions)
+
+            return word
+
+        def definitionsOf(self, words):
+            words = parseWords(words)
+
+            g = self.get
+            for word in words:
+                yield g(word, word)
+
+        def defined(self, word):
+            return word in self
+
+        @property
+        def google(self):
+            try: return self._google
+            except AttributeError:
+                google = self._google = my.gcloud.search.wmcOf.value.api
+
+        def lookup(self, word):
+            'Perform a google search for the word definition, and add it to the dictionary.'
+
+            (type, defn) = self.google.define(word).value
+            return self.define(word, ((type, d) for d in defn))
+
+        def netWorker(self, *args, **kwd):
+            try: return self._netWorker
+            except AttributeError:
+                nw = self._netWorker = NetWorker(self, *args, **kwd)
+                return nw
+
+    load = dictionary.FromJson
+
+    from threading import Thread
+    from Queue import Queue, Empty
+    from time import time as now
+    from contextlib import contextmanager
+
+    class NetWorker(Thread):
+        TIMESLICE_DURATION = 10 # seconds
+
+        def __init__(self, dictionary, dbPath, pathJson):
+            self.dictionary = dictionary
+            self.queue = Queue()
+            self.wordClass = self.orm(sqlite.pathOpen(dbPath))
+            self.timeslice_duration = self.TIMESLICE_DURATION
+            self.pathJson = io.path(pathJson)
+            self.start()
+
+        def orm(self, db):
+            try:
+                class Word(sqlite.Object):
+                    word = sqlite.StringCol()
+
+            except ValueError:
+                Word = sqlite.module.classregistry.registry(None).getClass('Word')
+
+            Word._connection = db
+            return Word
+
+        @property
+        def pending(self):
+            try:
+                while True:
+                    yield self.queue.get_nowait()
+
+            except Empty:
+                pass
+
+        def storeNew(self, word):
+            self.wordClass(word = word).sync()
+            return self
+
+        @property
+        @contextmanager
+        def timeslice(self):
+            endTime = now() + self.timeslice_duration
+            def working():
+                return now() > endTime
+
+            yield working
+
+        @property
+        def work(self):
+            q = self.wordClass.select()
+
+            with self.timeslice as working:
+                if working():
+                    yield next(q)
+
+        class Stop(StopIteration):
+            pass
+
+        def run(self):
+            while True:
+                for word in self.pending:
+                    if callable(word):
+                        try: word()
+                        except self.Stop:
+                            break
+                        except Exception, e:
+                            print e
+                            break
+                    else:
+                        self.storeNew(word)
+
+                for word in self.work:
+                    self.dictionary.lookup(word)
+
+                self.save()
+
+            # Final save.
+            self.save()
+
+        def save(self):
+            self.pathJson.write(self.dictionary.json)
+
+        def __iadd__(self, word):
+            self.queue.put(word)
+            return self
+
+        def stop(self):
+            raise self.Stop
+
+
+    # Speech
+    class speech:
+        def generateText(self, n):
+            return ' '.join(self.word for x in xrange(n))
+
+        def __call__(self, n = 10):
+            text = self.generateText(n)
+            print text
+            return system.call.speech(text)
+        speak = property(__call__)
+    tongue = speech
+
+
+    # Phonemes
+    from string import lowercase
+    vowels = 'aeiou'
+
+    # build database of word parts
+    # build database/stream of randomized word-part constructions, as nouns
+
+    def parseWord(word):
+        b = ''
+
+        for c in word:
+            c = c.lower()
+            if c in lowercase:
+                if c in vowels:
+                    b += c
+
+                elif b:
+                    if b[-1] in vowels:
+                        yield b
+                        b = c
+                    else:
+                        b += c
+
+                else:
+                    b = c
+
+            elif b:
+                yield b
+                b = ''
+
+        if b:
+            yield b
+
+    def parseWords(words):
+        for word in words:
+            for p in parseWord(word):
+                yield p
+
+    from random import choice
+
+    def buildWord(parts, nparts = 3):
+        return ''.join(choice(parts) for x in xrange(nparts))
+
+    class phonemes(list):
+        def __init__(self, parts, nparts):
+            self.parts = parts
+            self.nparts = nparts
+
+        def load(self, input = None):
+            if input is None:
+                input = self.parts.read()
+            if isinstance(input, basestring):
+                input = input.split()
+
+            self.update(parseWords(input))
+            return self
+
+        def __repr__(self):
+            return '<%s %d parts>' % (nameOf(classOf(self)), len(self))
+
+        def update(self, sequence):
+            for i in sequence:
+                if i not in self:
+                    self.append(i)
+
+        def save(self):
+            self.parts.write(nls(list.__iter__(self)))
+            return self
+
+        def __call__(self, nparts = None):
+            return buildWord(self, nparts or self.nparts)
+
+        generateOne = property(__call__)
+
+        def __iter__(self):
+            while True:
+                yield self.generate
+
+        def generate(self, n):
+            return (self.generateOne for x in xrange(n))
+        word = generateOne
+
+
+    def t():
+        return database(my.workspace.wordparts.txtOf, 4)
+
+    def s(n = 10):
+        english = my.workspace.eng[['pure']].txtOf.read()
+        db = t().load(english).save()
+        return db.speech(n)
+
+    # plug phoneme database into nouns
+
+
+    # Tongue
+    from random import randint, choice
+
+    def repeat(f, n):
+        for x in xrange(n):
+            yield f()
+
+    def rrepeat(f, n):
+        return repeat(f, randint(1, n))
+
+    def rbool():
+        return bool(randint(0, 1))
+
+    def rrange(n):
+        return xrange(1, randint(1, n))
+
+    spacing = joining(' ')
+
+    @joining(', ')
+    def comma(s):
+        return s
+
+    def isvowel(c):
+        return c[:1].lower() in 'aeiou'
+
+    def reporter(f):
+        def r(*args, **kwd):
+            for x in f(*args, **kwd):
+                print repr(x)
+                yield x
+
+        return r
+
+    def capitalize(s):
+        return s[:1].upper() + s[1:]
+
+    def parseDefinition(d):
+        return namespace(word = d, type = 'improper-noun')
+
+    class Grammar(dict, speech):
+        # todo: probabalistic categorical
+        def __init__(self, *args, **kwd):
+            dict.__init__(self, *args, **kwd)
+
+        def load(self, defs):
+            for d in defs:
+                defn = parseDefinition(d)
+                if defn.type == 'improper-noun':
+                    self['noun']['improper'].append(defn.word)
+                elif defn.type == 'proper-noun':
+                    self['noun']['proper'].append(defn.word)
+                elif defn.type == 'verb':
+                    self['verb'].append(defn.word)
+                elif defn.type == 'preposition':
+                    self['preposition'].append(defn.word)
+                elif defn.type == 'descriptor':
+                    self['descriptor'].append(defn.word)
+
+        def __call__(self, *args, **kwd):
+            return self.sentence(*args, **kwd)
+        new = property(__call__)
+
+        def sentence(self, phrases = 3):
+            return capitalize(comma(rrepeat(self.phrase, phrases))) + '.'
+
+        @spacing
+        #@reporter
+        def phrase(self, description = 3, parts = 3):
+            for x in rrange(parts):
+                if x != 0:
+                    yield self.preposition()
+
+                yield self.noun(describe = description)
+                yield self.verb()
+
+                if rbool():
+                    yield self.descriptor(description)
+                    yield self.preposition()
+
+                yield self.noun(describe = description)
+
+        def verb(self, description = 3):
+            return choice(self['verb'])
+
+        def preposition(self):
+            return choice(self['preposition'])
+
+        @property
+        def improperNoun(self):
+            return choice(self['noun']['improper'])
+        word = improperNoun
+
+        @spacing
+        def noun(self, describe = 3):
+            if rbool():
+                yield self.descriptor(describe)
+                yield choice(self['noun']['proper'])
+            else:
+                noun = self.improperNoun
+                if rbool():
+                    yield 'the'
+                    yield self.descriptor(describe)
+                    yield noun
+                else:
+                    desc = self.descriptor(describe)
+                    yield('an ' if isvowel(desc) else 'a ')
+                    yield desc
+                    yield noun
+
+        def descriptor(self, describe = 3):
+            return comma(choice(self['descriptor']) for x in rrange(describe))
+
+
+    class lang(speech):
+        def __init__(self, wordparts, english, nph):
+            self.text = Grammar(container.grammar)
+
+            ##    text.lex = my.workspace.eng[['pure']].txtOf.read().split()
+            ##    text.load(text.lex)
+
+            self.ph = phonemes(wordparts, 4)
+            if not self.ph.parts.exists:
+                english = english.read()
+                self.ph.load(english)
+                self.ph.save()
+            else:
+                self.ph.load()
+
+            self.text.load(self.ph.generate(nph))
+
+
+    @builtin.As(alias = 'newspeak')
+    ##    @apply
+    class newspeak(lang):
+        wordparts = my.workspace.library.wordparts.txtOf
+        english = my.workspace.eng[['pure']].txtOf
+        nph = 1000
+
+        def __init__(self):
+            lang.__init__(self, self.wordparts, self.english, self.nph)
+            global newspeak
+            newspeak = self
+
+    builtin(pleasure = Grammar(container.pleasure),
+            wrong = Grammar(container.wrong))
+
+    ##    def parseWordPhonemes(word):
+    ##        b = ''
+    ##        for c in word:
+    ##            if isvowel(c):
+    ##                if isvowel(b):
+    ##                    b += c
+    ##                else:
+    ##                    yield b
+    ##                    b = c
+    ##
+    ##            elif isvowel(b):
+    ##                yield b
+    ##                b = c
+    ##            else:
+    ##                b += c
+    ##
+    ##        if b:
+    ##            yield b
+    ##
+    ##    def generatePhonemeMatches(o):
+    ##        pass
