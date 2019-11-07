@@ -1,0 +1,46 @@
+my/communication:
+    documents/usage:
+        service: $.my.communication.messaging.streamChunk(session, frameOfVideo)
+        portal::
+            %doJavascriptCore('my/communication/javascript/library')
+            %doJavascriptCore('my/communication/javascript/cats/stream')
+
+    messaging::
+        data = structure('my/communication/javascript').cats.message
+
+        def streamChunk(session, message):
+            message = mapping(['content', message])
+            message = mapping(['message', message])
+            return session.postJavascript(data, message)
+
+
+    interfaces/javascript::
+        library($view)::
+            // Define the feed video component.
+            com$('my/feed/video', 'stream',
+                 {init: function (previous)
+                  { window.video = {}; },
+
+                  add: function (name, callback)
+                  { window.video[name] = function (frame)
+                    { return callback(name); } });
+
+        cats:
+            documentation::
+                The streaming server sends these messages, which also embed
+                the video frame or chunk data into the message binding.
+
+                Because the design of the video streaming component is to
+                basically delegate the handling of all incoming data such that
+                a richly-programmed user client can provide strong interaction
+                with content, the client-side streaming opening code specifies
+                this actual interaction while the server pumps prepared messages.
+
+            message: video.iAmInLoveWithCats(message.content);
+
+            stream($view)::
+                // Open a stream...
+                com('my/feed/video', 'stream')
+                    .add('iAmInLoveWithCats',
+                         function (name)
+                         { });
