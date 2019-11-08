@@ -1,50 +1,33 @@
 my/communication:
-    native::
-        @apply
-        class _native:
-            from xmlrpclib import dumps, loads
+    documents:
+        usage:
+            service: $.my.communication.messaging.streamChunk(session, frameOfVideo)
+            client: $.my.communication.client.application(session)
+            portal::
+                %doJavascriptCore('my/communication/javascript/library')
+                %doJavascriptCore('my/communication/javascript/cats/stream')
 
-            def xmlrpc(function):
-                def build(*args, **kwd):
-                    return loads(function(dumps(args, **kwd)))
+        native::
+            @apply
+            class _native:
+                from xmlrpclib import dumps, loads
 
-                return build
+                def xmlrpc(function):
+                    def build(*args, **kwd):
+                        return loads(function(dumps(args, **kwd)))
 
-        post = native(_native.xmlrpc(action(jQuery.post, '/rpc/session.command')))
-        slashing = native('/'.join)
+                    return build
 
-
-        # @accessible
-        # @native
-        # class javascriptCore(list):
-        #     def __repr__(self):
-        #         return post(slashing(self))
-
-
-    interfaces/application::
-        documentation: $.my.communication.application.component(session)
-
-        javascriptCore($accessible):
-            base: list
-            repr$($method)::
-                with $.my.communication.native:
-                    return .post(.slashing(instance))
+            post = native(_native.xmlrpc(action(jQuery.post, '/rpc/session.command')))
+            slashing = native('/'.join)
 
 
-        component($method):
-            parameters: [session]
-            code::
-                with document.javascriptCore.communication.javascript:
-                    with session.javascript as js:
-                        js += `.library`
-                        js += `.cats.stream`
+            # @accessible
+            # @native
+            # class javascriptCore(list):
+            #     def __repr__(self):
+            #         return post(slashing(self))
 
-
-    documents/usage:
-        service: $.my.communication.messaging.streamChunk(session, frameOfVideo)
-        portal::
-            %doJavascriptCore('my/communication/javascript/library')
-            %doJavascriptCore('my/communication/javascript/cats/stream')
 
     messaging::
         data = structure('my/communication/javascript').cats.message
@@ -55,33 +38,51 @@ my/communication:
             return session.postJavascript(data, message)
 
 
-    interfaces/javascript::
-        library($view)::
-            // Define the feed video component.
-            com$('my/feed/video', 'stream',
-                 {init: function (previous)
-                  { window.video = {}; },
+    interfaces:
+        client::
+            javascriptCore($accessible):
+                base: list
+                repr$($method)::
+                    with $.my.communication.native:
+                        return .post(.slashing(instance))
 
-                  add: function (name, callback)
-                  { window.video[name] = function (frame)
-                    { return callback(name); } });
 
-        cats:
-            documentation::
-                The streaming server sends these messages, which also embed
-                the video frame or chunk data into the message binding.
+            application($method):
+                parameters: [session]
+                code::
+                    with document.javascriptCore.communication.javascript:
+                        with session.javascript as js:
+                            js += `.library`
+                            js += `.cats.stream`
 
-                Because the design of the video streaming component is to
-                basically delegate the handling of all incoming data such that
-                a richly-programmed user client can provide strong interaction
-                with content, the client-side streaming opening code specifies
-                this actual interaction while the server pumps prepared messages.
 
-            message: video.iAmInLoveWithCats(message.content);
+        javascript::
+            library($view)::
+                // Define the feed video component.
+                com$('my/feed/video', 'stream',
+                     {init: function (previous)
+                      { window.video = {}; },
 
-            stream($view)::
-                // Open a stream...
-                com('my/feed/video', 'stream')
-                    .add('iAmInLoveWithCats',
-                         function (name)
-                         { });
+                      add: function (name, callback)
+                      { window.video[name] = function (frame)
+                        { return callback(name); } });
+
+            cats:
+                documentation::
+                    The streaming server sends these messages, which also embed
+                    the video frame or chunk data into the message binding.
+
+                    Because the design of the video streaming component is to
+                    basically delegate the handling of all incoming data such that
+                    a richly-programmed user client can provide strong interaction
+                    with content, the client-side streaming opening code specifies
+                    this actual interaction while the server pumps prepared messages.
+
+                message: video.iAmInLoveWithCats(message.content);
+
+                stream($view)::
+                    // Open a stream...
+                    com('my/feed/video', 'stream')
+                        .add('iAmInLoveWithCats',
+                             function (name)
+                             { });
