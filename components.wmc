@@ -1,18 +1,55 @@
 my/communication:
+    native::
+        @apply
+        class _native:
+            from xmlrpclib import dumps, loads
+
+            def xmlrpc(function):
+                def build(*args, **kwd):
+                    return loads(function(dumps(args, **kwd)))
+
+                return build
+
+            post = xmlrpc(action(jQuery.post, '/rpc/session.command'))
+            slashing = '/'.join
+
+
+        @accessible
+        @native
+        class javascriptCore(list):
+            def __repr__(self):
+                return post(slashing(self))
+
+
+    interfaces/application::
+        documentation: $.my.communication.application.component(session)
+
+        javascriptCore($accessible):
+            repr$($expression): post(slashing(.))
+            base: list
+
+        component($method):
+            parameters: [session]
+            code::
+                with document.javascriptCore.communication.javascript:
+                    with session.javascript as js:
+                        js += `.library`
+                        js += `.cats.stream`
+
+
     documents/usage:
-        service: $.my.communication.messaging.cats.streamChunk(session, frameOfVideo)
+        service: $.my.communication.messaging.streamChunk(session, frameOfVideo)
         portal::
             %doJavascriptCore('my/communication/javascript/library')
             %doJavascriptCore('my/communication/javascript/cats/stream')
 
-    messaging:
-        cats:
-            data = structure('my/communication/javascript').cats.message
+    messaging::
+        data = structure('my/communication/javascript').cats.message
 
-            def streamChunk(session, message):
-                message = mapping(['content', message])
-                message = mapping(['message', message])
-                return session.postJavascript(data, message)
+        def streamChunk(session, message):
+            message = mapping(['content', message])
+            message = mapping(['message', message])
+            return session.postJavascript(data, message)
 
 
     interfaces/javascript::
