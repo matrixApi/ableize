@@ -10,23 +10,26 @@ my/communication:
 
                 return build
 
-            post = xmlrpc(action(jQuery.post, '/rpc/session.command'))
-            slashing = '/'.join
+        post = native(_native.xmlrpc(action(jQuery.post, '/rpc/session.command')))
+        slashing = native('/'.join)
 
 
-        @accessible
-        @native
-        class javascriptCore(list):
-            def __repr__(self):
-                return post(slashing(self))
+        # @accessible
+        # @native
+        # class javascriptCore(list):
+        #     def __repr__(self):
+        #         return post(slashing(self))
 
 
     interfaces/application::
         documentation: $.my.communication.application.component(session)
 
         javascriptCore($accessible):
-            repr$($expression): post(slashing(.))
             base: list
+            repr$($method)::
+                with $.my.communication.native:
+                    return .post(.slashing(instance))
+
 
         component($method):
             parameters: [session]
