@@ -86,3 +86,57 @@ my/communication:
                         .add('iAmInLoveWithCats',
                              function (name)
                              { });
+
+
+example:
+    authorization::
+        documentation::
+            The purpose being to create an function that asserts ownership of a particular
+            asset, and also authorization of a hardcoded secret for the financial object
+            before calling a particular action.  Then it deploys it as a client application
+            component with a graphical interface.
+
+
+        secret$: structure($.secure.keySequence).afad9a69767e7c24ecda5af9187202e1b4b070b2
+
+        stake = $.components.financial.stake
+
+        def init$(asset, action):
+            .call$ = stake$call:
+                condition:
+                    own$: sha1(asset)
+
+                consequence$:
+                    stake$call:
+                        consequence$: action
+                        condition:
+                            secret$: secret
+
+
+        application:
+            protectedAction($method):
+                parameters: [keyword, action, verb]
+                code::
+                    action = .location.contents[keyword: keyword]
+                    action = action.interface.commands[action]
+
+                    .interface.commands[verb] = $command:
+                        implementation$: $.authorization(keyword, action)
+                        verb$: verb
+
+
+            service($view):
+                formation: clientApplication('/page/example/authorization/application/service')
+
+                context($trigger)::
+                    shortate$call::
+                        $ example authorization application protectedAction
+                            'watering hole'
+                            'drink'
+                            'hydrate'
+
+                    response.html$call:
+                        $html:
+                            button:
+                                caption: Hydrate from Protected Watering Hole
+                                click: evaluateScript('.interface.commands.hydrate()')
