@@ -261,3 +261,39 @@ document-server::
             def dispatch(self, message):
                 # The protocol for handling a message is to just stream it.
                 self.wfile.write(str(message))
+
+
+product-component:
+    description: 1st-person tactical interface
+    source: 'https://minirts.org'
+
+    implementation::
+        provisioning.rts($package)::
+            '''
+            This repurposes the strategical instructive generator model
+            for a single-unit executive avatar session.
+
+            '''
+
+            from receptacle.client import remote as protocol
+            from phClient import messaging
+
+            # The MiniRTS Torch Models.
+            system.path += my.path.minirts.scripts.behaviour_clone
+
+            from executor import Executor
+            from instruction_generator \
+                import (LanguageGenerator,
+                        RnnLanguageGenerator)
+
+
+            class avatar:
+                'Neuronal model centralizing entity behaviour.'
+
+                # provide methods that operate the nn for the
+                # remoting interface.
+
+                @protocol.operator(messaging)
+                class api:
+                    # Interactive remote session object.
+                    pass
