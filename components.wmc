@@ -297,3 +297,93 @@ product-component:
                 class api:
                     # Interactive remote session object.
                     pass
+
+
+cognition/discriminative:
+    documents:
+        documentation::
+            Because the channel represents a remote determination,
+            it is possible that a step, in a process, can either
+            block, or, join with the process later, upon remote
+            response.
+
+            The step's delegated method is the thing that can join
+            with the process later, because this operation and the
+            channel are parameters to the method.
+
+
+    operation::
+        def call$(channel, instructions):
+            for step in instructions:
+                step.response(., channel)
+
+    step::
+        documentation: A way of synchronizing a method with a channel.
+
+        def init$(asynchronous, method)
+            .asynchronous = asynchronous
+            .method = method
+
+        def response(operation, channel):
+            if .asynchronous:
+                return parallel(.responseMethod, operation, channel)
+            else:
+                return .responseMethod(operation, channel)
+
+        def responseMethod(operation, channel):
+            # Supposedly the channel could synchronize instead
+            # of using this explicitly parallelized routine.
+            response = channel.messageSynchronous(.)
+            return .method(., operation, channel, response)
+
+
+    thought/singular::
+        usage::
+            When operation is done processing instruction steps,
+            alternative considerations are no longer included
+            in the product value, which can be returned.
+            The operational task seeks to consider contemplation
+            by waiting on the communication channel, which will
+            signal for a conclusion.  This just represents some
+            kind of foreground processing that might be happening
+            while other calculations are being made in parallel.
+            Now, as a concept, a contemplative operational task
+            can cause an alternative consideration to the product,
+            while conscious activity continues.  The alternative
+            is caused by the basic unit of operation, although
+            it might yield unpredictable results.
+
+
+        super = extend($.operation)
+
+        def init$():
+            super.init$(.)
+            .channel = $.services.channel()
+
+        def call$():
+            return super.call$(., channel,
+                               [..step(false, .initialConsiderations),
+                                ..step(true, .alternativeConsiderations),
+                                ..step(false, .passiveContemplations)])
+
+        def initialConsiderations(step, operation, channel, response):
+            channel.post('the product of the numbers has a particular value')
+            operation.value = [10]
+            operation.conclude = false
+
+        def alternativeConsiderations(step, operation, channel, response):
+            while not operation.conclude:
+                message = $.network.generic.stream() # Attach to some live stream.
+
+                if not message:
+                    break
+
+                if message.semantic == 'challenges the product of the numbers':
+                    channel.post('challenge to product')
+                    operation.value.append(message.value)
+
+        def passiveContemplations(step, operation, channel, response):
+            message = channel.get()
+            if message.semantic == 'suggest conclusion':
+                operation.conclude = true
+
