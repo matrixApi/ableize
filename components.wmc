@@ -300,16 +300,15 @@ product-component:
 
 
 cognition/discriminative:
-    documents:
-        documentation::
-            Because the channel represents a remote determination,
-            it is possible that a step, in a process, can either
-            block, or, join with the process later, upon remote
-            response.
+    documents/documentation::
+        Because the channel represents a remote determination,
+        it is possible that a step, in a process, can either
+        block, or, join with the process later, upon remote
+        response.
 
-            The step's delegated method is the thing that can join
-            with the process later, because this operation and the
-            channel are parameters to the method.
+        The step's delegated method is the thing that can join
+        with the process later, because this operation and the
+        channel are parameters to the method.
 
 
     operation::
@@ -342,11 +341,13 @@ cognition/discriminative:
             When operation is done processing instruction steps,
             alternative considerations are no longer included
             in the product value, which can be returned.
+
             The operational task seeks to consider contemplation
             by waiting on the communication channel, which will
             signal for a conclusion.  This just represents some
             kind of foreground processing that might be happening
             while other calculations are being made in parallel.
+
             Now, as a concept, a contemplative operational task
             can cause an alternative consideration to the product,
             while conscious activity continues.  The alternative
@@ -360,11 +361,16 @@ cognition/discriminative:
             super.init$(.)
             .channel = $.services.channel()
 
+            try: return arguments[0] and .call$()
+            except: pass
+
+
         def call$():
             return super.call$(., channel,
                                [..step(false, .initialConsiderations),
                                 ..step(true, .alternativeConsiderations),
                                 ..step(false, .passiveContemplations)])
+
 
         def initialConsiderations(step, operation, channel, response):
             channel.post('the product of the numbers has a particular value')
@@ -386,4 +392,11 @@ cognition/discriminative:
             message = channel.get()
             if message.semantic == 'suggest conclusion':
                 operation.conclude = true
+
+
+interfaces/strategy::
+    Matrix move bounce off invisible wall with machinegun slung around shoulder and withdraw
+    the katana bring it down into a human-splitting slice the other defense.  And, third arm
+    brings around ball from back and waves it over endzone post.
+    ...
 
